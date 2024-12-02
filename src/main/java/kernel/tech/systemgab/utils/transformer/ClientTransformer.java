@@ -5,12 +5,15 @@ import kernel.tech.systemgab.dao.entity.Client;
 import kernel.tech.systemgab.utils.dto.ClientDto;
 import kernel.tech.systemgab.utils.dto.ClientResponseDto;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
+
+/**
+ * TRANSFORMER for table "Client"
+ *
+ * @author yeonoel
+ *
+ */
 @Mapper(componentModel = "spring")
 public interface ClientTransformer {
-
-
     ClientResponseDto toDto(Client client);
 }

@@ -8,16 +8,26 @@ import kernel.tech.systemgab.dao.repository.CompteRepository;
 import kernel.tech.systemgab.dao.repository.TransactionRepository;
 import kernel.tech.systemgab.utils.contract.Response;
 import kernel.tech.systemgab.utils.dto.CompteDto;
+import kernel.tech.systemgab.utils.dto.ResponseTransactionDto;
 import kernel.tech.systemgab.utils.dto.TransactionDto;
 import kernel.tech.systemgab.utils.enums.StatutTransaction;
 import kernel.tech.systemgab.utils.enums.TypeOperation;
 import kernel.tech.systemgab.utils.transformer.TransactionTransformer;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+
+/**
+ BUSINESS for All transaction
+ *
+ * @author yeonoel
+ *
+ */
+@Slf4j
 @Service
 public class TransactionBusiness {
 
@@ -35,20 +45,31 @@ public class TransactionBusiness {
     }
 
 
-    public Response<CompteDto> retrait(TransactionDto transactionDto) {
+    /**
+     * executeTransaction by using TransactionDto as object.
+     *
+     * @param transactionDto
+     * @return CompteDto
+     *
+     */
+    public Response<CompteDto> executeTransaction(TransactionDto transactionDto) {
+        log.info("----begin "+ transactionDto.getTypeOperation() +" Transaction -----");
         Response<CompteDto> response = new Response<>();
 
-        if(transactionDto.getCompteId() == null) {
+        // checks if field is filled CompteId
+        if(transactionDto.getCompteId() == null || transactionDto.getCompteId() == 0) {
             response.setStatus("Error");
-            response.setMessage("L'identifiant du Compte est vide" + transactionDto.getCompteId());
+            response.setMessage("le champ  CompteId  doit être correctement rempli" + transactionDto.getCompteId());
             return response;
         }
-        if(transactionDto.getClientId() == null) {
+        // checks if field is filled ClientId
+        if(transactionDto.getClientId() == null || transactionDto.getClientId() == 0) {
             response.setStatus("Error");
-            response.setMessage("L'identifiant du client est obligatoire" + transactionDto.getClientId());
+            response.setMessage("le champ  ClientId  doit être correctement rempli" + transactionDto.getClientId());
             return response;
         }
 
+        //check if customer exits
         Optional<Client> client = clientRepository.findById(Long.valueOf(transactionDto.getClientId()));
         if (!client.isPresent()) {
             response.setStatus("Error");
@@ -57,7 +78,7 @@ public class TransactionBusiness {
 
         }
 
-        // Rechercher le compte
+        // Check if account exist
         Optional<Compte> compte = compteRepository.findByCompteIdAndClient(transactionDto.getCompteId(), client.get());
         if (!compte.isPresent()) {
             response.setStatus("Error");
@@ -65,110 +86,95 @@ public class TransactionBusiness {
             return response;
 
         }
-        Compte comptefound = compte.get();
+        Compte compteFound = compte.get();
 
-        // On verie le solde suffisant
-        if (comptefound.getSolde().compareTo(transactionDto.getMontant()) < 0) {
-            response.setStatus("error");
-            response.setMessage("Solde insuffisant");
 
-            Transaction transaction = new Transaction();
-            transaction.setCompte(comptefound);
-            transaction.setTypeOperation(TypeOperation.RETRAIT);
-            transaction.setMontant(transactionDto.getMontant());
-            transaction.setDateTransaction(LocalDateTime.now());
-            transaction.setStatut(StatutTransaction.ECHEC);
-            transaction.setMessageErreur("Solde insuffisant");
 
-            transactionRepository.save(transaction);
-            return response;
+        //Check  type operation
+        Compte compteSave = null;
+        if(transactionDto.getTypeOperation() == TypeOperation.RETRAIT ) {
+            // I check if the balance is sufficient
+            if (compteFound.getSolde().compareTo(transactionDto.getMontant()) < 0) {
+                response.setStatus("Error");
+                response.setMessage("Solde insuffisant");
+                //Create new transaction  for ECHEC withdrawal
+                newTransaction(compteFound, transactionDto, TypeOperation.RETRAIT ,StatutTransaction.ECHEC, "Solde insuffisant");
+
+                return response;
+            }
+            // Subtract balance amount
+            compteFound.setSolde(compteFound.getSolde().subtract(transactionDto.getMontant()));
+            compteSave =  compteRepository.save(compteFound);
+            //Create new transaction  for SUCCESS withdrawal
+            newTransaction(compteFound, transactionDto, TypeOperation.RETRAIT ,StatutTransaction.SUCCES, "Operation effectuée avec succes");
+            response.setMessage("Retrait effectué avec succes");
+
+        } else if(transactionDto.getTypeOperation() == TypeOperation.DEPOT) {
+             //add the amount to the  balance
+            compteFound.setSolde(compteFound.getSolde().add(transactionDto.getMontant()));
+            compteSave =  compteRepository.save(compteFound);
+            //Create new transaction  for SUCCESS withdrawal
+            newTransaction(compteFound, transactionDto, TypeOperation.DEPOT ,StatutTransaction.SUCCES, "");
+            response.setMessage("Depot effectué avec succes");
+
         }
 
-        // Déduire le montant du solde
-        comptefound.setSolde(comptefound.getSolde().subtract(transactionDto.getMontant()));
-        Compte compteSave =  compteRepository.save(comptefound);
 
-        // ON enregistre  la transaction
-        Transaction transaction = new Transaction();
-        transaction.setCompte(comptefound);
-        transaction.setTypeOperation(TypeOperation.RETRAIT);
-        transaction.setMontant(transactionDto.getMontant());
-        transaction.setDateTransaction(LocalDateTime.now());
-        transaction.setStatut(StatutTransaction.SUCCES);
-        transactionRepository.save(transaction);
 
         CompteDto compteDto = new CompteDto();
         compteDto.setNouveauSolde(compteSave.getSolde());
 
-        response.setStatus("success");
-        response.setMessage("Retrait effectué avec succès");
+        response.setStatus("Success");
         response.setData(compteDto);
+
+        log.info("----end "+ transactionDto.getTypeOperation() +" Transaction -----");
         return response;
     }
 
-    public Response<CompteDto> depot(TransactionDto transactionDto) {
-        Response<CompteDto> response = new Response<>();
 
-        Optional<Compte> compte = compteRepository.findById(transactionDto.getCompteId());
-        if (!compte.isPresent()) {
+
+    /**
+     * historique by using TransactionDto as object.
+     *
+     * @param transactionDto
+     * @return ResponseTransactionDto
+     *
+     */
+    public Response<ResponseTransactionDto> historique(TransactionDto transactionDto) {
+        log.info("----begin historique Transaction -----");
+        Response<ResponseTransactionDto> response = new Response<>();
+
+        // checks if field is filled CompteId
+        if(transactionDto.getCompteId() == null || transactionDto.getCompteId() == 0) {
             response.setStatus("Error");
-            response.setMessage("Compte introuvable");
-            return response;
-
-        }
-        Compte comptefound = compte.get();
-
-        // On ajoute le montant au solde
-        comptefound.setSolde(comptefound.getSolde().add(transactionDto.getMontant()));
-        Compte compteSave =  compteRepository.save(comptefound);
-
-        // Enregistrement de la transaction la transaction
-        Transaction transaction = new Transaction();
-        transaction.setCompte(comptefound);
-        transaction.setTypeOperation(TypeOperation.DEPOT);
-        transaction.setMontant(transactionDto.getMontant());
-        transaction.setDateTransaction(LocalDateTime.now());
-        transaction.setStatut(StatutTransaction.SUCCES);
-        transactionRepository.save(transaction);
-
-        CompteDto compteDto = new CompteDto();
-        compteDto.setNouveauSolde(compteSave.getSolde());
-
-        response.setStatus("success");
-        response.setMessage("Dépôt effectué avec succès");
-        response.setData(compteDto);
-        return response;
-    }
-
-    public Response<TransactionDto> historique(TransactionDto transactionDto) {
-        Response<TransactionDto> response = new Response<>();
-
-        if (transactionDto.getCompteId() == null) {
-            response.setStatus("Error");
-            response.setMessage("L'identifiant du Compte est obligatoire.");
+            response.setMessage("le champ  CompteId  doit être correctement rempli" + transactionDto.getCompteId());
             return response;
         }
-        if (transactionDto.getClientId() == null) {
+        // checks if field is filled ClientId
+        if(transactionDto.getClientId() == null || transactionDto.getClientId() == 0) {
             response.setStatus("Error");
-            response.setMessage("L'identifiant du Client est obligatoire.");
+            response.setMessage("le champ  ClientId  doit être correctement rempli" + transactionDto.getClientId());
             return response;
         }
 
-        // ON verifie que existe client
+        //check if customer exits
         Optional<Client> client = clientRepository.findById(Long.valueOf(transactionDto.getClientId()));
-        if (client.isEmpty()) {
+        if (!client.isPresent()) {
             response.setStatus("Error");
-            response.setMessage("Client introuvable avec l'ID " + transactionDto.getClientId());
+            response.setMessage("Client  introuvable");
             return response;
+
         }
 
-        // On verifie si le compte existe si oui on le recupere sinon on retourne l'erreur
+        // Check if account exist
         Optional<Compte> compte = compteRepository.findByCompteIdAndClient(transactionDto.getCompteId(), client.get());
-        if (compte.isEmpty()) {
+        if (!compte.isPresent()) {
             response.setStatus("Error");
-            response.setMessage("Compte introuvable pour le Client.");
+            response.setMessage("Compte introuvable");
             return response;
+
         }
+        Compte compteFound = compte.get();
 
         // On recuperer  les transactions
         List<Transaction> transactions = transactionRepository.findAllByCompte(compte.get());
@@ -178,15 +184,28 @@ public class TransactionBusiness {
             return response;
         }
 
-        // Transformation en DTO
-        List<TransactionDto> transactionDtos = transactionTransformer.toDtoList(transactions);
+        //Transformation en DTO
+        List<ResponseTransactionDto> transactionDtos = transactionTransformer.toDtoList(transactions);
 
-        // Construction de la réponse
+        //Construction de la réponse
         response.setStatus("Success");
-        response.setMessage("Transactions récupérées avec succès.");
+        response.setMessage("HIstorique récupéreés avec succès.");
         response.setDatas(transactionDtos);
 
+        log.info("----end historique Transaction -----");
         return response;
+
+    }
+
+    public void newTransaction(Compte comptefound, TransactionDto transactionDto, TypeOperation type,  StatutTransaction status, String message) {
+        Transaction transaction = new Transaction();
+        transaction.setCompte(comptefound);
+        transaction.setTypeOperation(type);
+        transaction.setMontant(transactionDto.getMontant());
+        transaction.setDateTransaction(LocalDateTime.now());
+        transaction.setStatut(status);
+        transaction.setMessage(message);
+        transactionRepository.save(transaction);
 
     }
 }

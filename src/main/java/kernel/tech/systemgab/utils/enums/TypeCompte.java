@@ -1,11 +1,14 @@
 package kernel.tech.systemgab.utils.enums;
 
+/**
+ *
+ * @author yeonoel
+ *
+ */
 public enum TypeCompte {
     COURANT("Compte Courant"),
     EPARGNE("Compte Épargne");
-
     private final String libelle;
-
     TypeCompte(String libelle) {
         this.libelle = libelle;
     }

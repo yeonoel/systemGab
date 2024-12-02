@@ -6,6 +6,13 @@ import kernel.tech.systemgab.utils.dto.ClientResponseDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
+
+/**
+ * TRANSFORMER for table "Carte"
+ *
+ * @author yeonoel
+ *
+ */
 @Mapper(componentModel = "spring")
 public interface CarteTransformer {
 

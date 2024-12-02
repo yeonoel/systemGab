@@ -11,15 +11,28 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 
+
+/**
+ Jwt security filter for all request
+ *
+ * @author yeonoel
+ *
+ */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JWTUtil jwtUtil;
-
     public JwtFilter(JWTUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
     }
 
+    /**
+     * create doFilterInternal to filtre all rquest.
+     *
+     * @param request
+     * @return
+     *
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -27,7 +40,6 @@ public class JwtFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
         String cardNumber = null;
         String jwt = null;
-
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.substring(7);
             try {
@@ -43,7 +55,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
                 }
             } catch (Exception e) {
-                logger.error("Impossible de définir l'authentification de l'utilisateur: {}", e);
+                logger.error("Impossible de faire l'authentificatio du client: {}", e);
             }
         }
 

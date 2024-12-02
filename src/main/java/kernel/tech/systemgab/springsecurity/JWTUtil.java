@@ -12,6 +12,12 @@ import java.util.Map;
 import java.util.function.Function;
 
 
+/**
+ JWTUtil for user authentication and authorization
+ *
+ * @author yeonoel
+ *
+ */
 @Component
 public class JWTUtil {
 
@@ -26,6 +32,14 @@ public class JWTUtil {
         return createToken(claims, cardNumber);
     }
 
+    /**
+     * createToken to generate a token on login
+     *
+     * @param claims
+     * @param subject
+     * @return String
+     *
+     */
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .setClaims(claims)
@@ -36,6 +50,14 @@ public class JWTUtil {
                 .compact();
     }
 
+    /**
+     * validateToken Check token validity
+     *
+     * @param token
+     * @param cardNumber
+     * @return boolean
+     *
+     */
     public boolean validateToken(String token, String cardNumber) {
         final String username = extractCardNumber(token);
         return (username.equals(cardNumber) && !isTokenExpired(token));

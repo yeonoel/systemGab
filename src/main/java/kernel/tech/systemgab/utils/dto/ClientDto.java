@@ -5,7 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
+/**
+ * DTO ofr table "Client"
+ *
+ * @author yeonoel
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,5 +20,6 @@ public class ClientDto {
         private String password;
         private String typedeCOmpte;
         private String cardNumero;
+
 
 }

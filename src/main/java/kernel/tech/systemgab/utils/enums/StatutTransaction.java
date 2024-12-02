@@ -1,16 +1,15 @@
 package kernel.tech.systemgab.utils.enums;
 
+/**
+ *
+ * @author yeo
+ *
+ */
 public enum StatutTransaction {
-    SUCCES("Succès"),
-    ECHEC("Échec");
-
+    SUCCES("Succes"),
+    ECHEC("Echec");
     private final String libelle;
-
     StatutTransaction(String libelle) {
         this.libelle = libelle;
-    }
-
-    public String getLibelle() {
-        return libelle;
     }
 }

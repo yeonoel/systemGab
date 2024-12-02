@@ -9,23 +9,14 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-
-/**
- * DTO for table "TansactionDto"
- *
- * @author yeonoel
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TransactionDto {
+public class ResponseTransactionDto {
 
-
-    private Long compteId;
-    private Integer clientId;
     private TypeOperation typeOperation;
     private BigDecimal montant;
+    private String dateTransaction;
+    private StatutTransaction statut;
     private String message;
-
 }
-

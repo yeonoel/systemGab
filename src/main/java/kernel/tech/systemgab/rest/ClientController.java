@@ -6,12 +6,20 @@ import kernel.tech.systemgab.utils.contract.Response;
 import kernel.tech.systemgab.utils.dto.ClientDto;
 import kernel.tech.systemgab.utils.dto.ClientResponseDto;
 import kernel.tech.systemgab.utils.dto.LoginDto;
+import kernel.tech.systemgab.utils.dto.LoginResponseDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+
+/**
+ Controller for table "clients"
+ *
+ * @author yeonoel
+ *
+ */
 @Slf4j
 @RestController
 @RequestMapping("/user")
@@ -32,9 +40,9 @@ public class ClientController {
     }
 
     @RequestMapping(value = "/login", method = RequestMethod.POST , consumes =  {"application/json"}, produces = {"application/json"})
-    public Response<ClientDto> login(@RequestBody LoginDto loginDto) {
+    public Response<LoginResponseDto> login(@RequestBody LoginDto loginDto) {
         log.info("Client login : {}", loginDto);
-        Response<ClientDto> response = new Response<>();
+        Response<LoginResponseDto> response = new Response<>();
         response = clientBusinnes.login(loginDto);
         return response;
     }

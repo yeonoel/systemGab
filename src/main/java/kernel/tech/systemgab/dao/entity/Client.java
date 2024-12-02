@@ -6,10 +6,20 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
+/**
+ * Persistent class for entity stored in table "clients"
+ *
+ * @author yeonoel
+ *
+ */
 @Data
 @Entity
 @Table(name = "clients")
 public class Client {
+    //----------------------------------------------------------------------
+    // ENTITY PRIMARY KEY
+    //----------------------------------------------------------------------
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long clientId;

@@ -7,6 +7,12 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+
+/**
+ * DTO response after transaction(deposit, withdrawal)
+ *
+ * @author yeonoel
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -5,10 +5,20 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
+
+/**
+ * Persistent class for entity stored in table "cartes"
+ *
+ * @author yeonoel
+ *
+ */
 @Data
 @Entity
 @Table(name = "cartes")
 public class Carte {
+    //----------------------------------------------------------------------
+    // ENTITY PRIMARY KEY
+    //----------------------------------------------------------------------
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long carteId;
@@ -18,6 +28,9 @@ public class Carte {
     private LocalDate dateExpiration;
     private boolean estActive;
 
+    //----------------------------------------------------------------------
+    // ENTITY LINKS ( RELATIONSHIP )
+    //----------------------------------------------------------------------
     @ManyToOne
     @JoinColumn(name = "client_id")
     private Client client;
