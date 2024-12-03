@@ -14,6 +14,9 @@ import kernel.tech.systemgab.utils.dto.ClientResponseDto;
 import kernel.tech.systemgab.utils.dto.LoginDto;
 import kernel.tech.systemgab.utils.dto.LoginResponseDto;
 import kernel.tech.systemgab.utils.enums.TypeCompte;
+import kernel.tech.systemgab.utils.exception.CartIntrouvableException;
+import kernel.tech.systemgab.utils.exception.InternalErrorException;
+import kernel.tech.systemgab.utils.exception.ValidationException;
 import kernel.tech.systemgab.utils.transformer.CarteTransformer;
 import kernel.tech.systemgab.utils.transformer.ClientTransformer;
 import lombok.extern.slf4j.Slf4j;
@@ -75,23 +78,16 @@ public class ClientBusiness {
         log.info("----begin create Client-----");
         Response<ClientResponseDto> response = new Response<>();
 
+        //fileds validation
         if (clientDto.getNom() == null || clientDto.getNom().isEmpty()) {
-            response.setStatus("Error");
-            response.setMessage("le champ  Nom  doit être correctement rempli" + clientDto.getNom());
-            return response;
+            throw new ValidationException("le champ  Non  doit être correctement rempli" + clientDto.getNom());
         }
-
         if (clientDto.getPrenom() == null || clientDto.getPrenom().isEmpty()) {
-            response.setStatus("Error");
-            response.setMessage("le champ  Prenom  doit être correctement rempli" + clientDto.getPrenom());
-            return response;
+            throw new ValidationException("le champ  prenom  doit être correctement rempli" + clientDto.getPrenom());
+
         }
-
-
         if (clientDto.getPassword() == null || clientDto.getPassword().isEmpty()) {
-            response.setStatus("Error");
-            response.setMessage("le champ  Password  doit être correctement rempli");
-            return response;
+            throw new ValidationException("le champ  password  doit être correctement rempli");
         }
 
         try {
@@ -99,18 +95,16 @@ public class ClientBusiness {
             Client client = new Client();
             client.setNom(clientDto.getNom());
             client.setPrenom(clientDto.getPrenom());
-            client.setPassword(clientDto.getPassword());
+            client.setPassword(passwordEncoder.encode(clientDto.getPassword()));
             client.setCreatedAt(LocalDateTime.now());
-
             client = clientRepository.save(client);
 
             // start Create customer account
             Compte compte = new Compte();
             if (TypeCompte.isValidLibelle(clientDto.getTypedeCOmpte())) {
-                response.setMessage("le champ type de compte n'est pas correct" + clientDto.getTypedeCOmpte());
-                response.setStatus("Error TypeCompte");
-                return response;
+                throw new InternalErrorException("le champ type de compte n'est pas correct" + clientDto.getTypedeCOmpte());
             }
+
             compte.setSolde(BigDecimal.ZERO);
             compte.setClient(client);
             compte.setTypeCompte(TypeCompte.valueOf(clientDto.getTypedeCOmpte()));
@@ -157,15 +151,19 @@ public class ClientBusiness {
         log.info("----begin login  Client -----");
 
         Response<LoginResponseDto> response = new Response<>();
-        // I check if the card exists
-        Optional<Carte> optionalCarte = carteRepository.findByNumeroCarte((loginDto.getCardNumber()));
-        if (optionalCarte.isEmpty()) {
-            response.setStatus("Error");
-            response.setMessage("Numéro de carte introuvable !" + loginDto.getCardNumber());
-            return response;
+
+        //fields  validation
+        if(loginDto.getCardNumber() == null || loginDto.getCardNumber().isEmpty()) {
+            throw new ValidationException("Le champ cardNumber doit être correctement rempli ->" + loginDto.getCardNumber());
+        }
+        if(loginDto.getPassword() == null || loginDto.getPassword().isEmpty()) {
+            throw new ValidationException("Le champ password doit être correctement rempli ->" + loginDto.getPassword());
         }
 
-        Carte carte = optionalCarte.get();
+        // I check if the card exists
+        Carte carte = carteRepository.findByNumeroCarte((loginDto.getCardNumber()))
+                .orElseThrow(() -> new CartIntrouvableException("La la carte est introuvable"));
+
 
         // check if password matches
         if (!passwordEncoder.matches(loginDto.getPassword(), carte.getPassword())) {
@@ -175,12 +173,12 @@ public class ClientBusiness {
         }
 
         // find account by customer
-        Compte compte = compteRepository.findByClient(optionalCarte.get().getClient());
+        Compte compte = compteRepository.findByClient(carte.getClient());
 
 
         LoginResponseDto loginResponseDto = new LoginResponseDto();
-        loginResponseDto.setCardId(optionalCarte.get().getCarteId());
-        loginResponseDto.setClientId(optionalCarte.get().getClient().getClientId());
+        loginResponseDto.setCardId(carte.getCarteId());
+        loginResponseDto.setClientId(carte.getClient().getClientId());
         loginResponseDto.setSolde(compte.getSolde());
         loginResponseDto.setPrenom(compte.getClient().getPrenom());
         loginResponseDto.setNom(compte.getClient().getNom());
@@ -189,6 +187,7 @@ public class ClientBusiness {
         //generate JWT
         String token = jwtUtil.generateToken(carte.getNumeroCarte());
 
+        //
         response.setStatus("Success");
         response.setToken(token);
         response.setMessage("Connection reussie");

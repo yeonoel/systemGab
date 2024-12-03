@@ -17,5 +17,4 @@ public class Response<T> {
     private List<T> datas;
     private String token ;
 
-    // Getters, setters et constructeurs
 }

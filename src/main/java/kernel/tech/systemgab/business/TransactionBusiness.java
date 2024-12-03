@@ -12,6 +12,7 @@ import kernel.tech.systemgab.utils.dto.ResponseTransactionDto;
 import kernel.tech.systemgab.utils.dto.TransactionDto;
 import kernel.tech.systemgab.utils.enums.StatutTransaction;
 import kernel.tech.systemgab.utils.enums.TypeOperation;
+import kernel.tech.systemgab.utils.exception.*;
 import kernel.tech.systemgab.utils.transformer.TransactionTransformer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -56,51 +57,33 @@ public class TransactionBusiness {
         log.info("----begin "+ transactionDto.getTypeOperation() +" Transaction -----");
         Response<CompteDto> response = new Response<>();
 
-        // checks if field is filled CompteId
+        //fields  validation
         if(transactionDto.getCompteId() == null || transactionDto.getCompteId() == 0) {
-            response.setStatus("Error");
-            response.setMessage("le champ  CompteId  doit être correctement rempli" + transactionDto.getCompteId());
-            return response;
+            throw new ValidationException("Le champ CompteId doit être correctement rempli ->" + transactionDto.getCompteId());
         }
-        // checks if field is filled ClientId
         if(transactionDto.getClientId() == null || transactionDto.getClientId() == 0) {
-            response.setStatus("Error");
-            response.setMessage("le champ  ClientId  doit être correctement rempli" + transactionDto.getClientId());
-            return response;
+            throw new ValidationException("Le champ ClientId doit être correctement rempli ->" + transactionDto.getClientId());
         }
 
         //check if customer exits
-        Optional<Client> client = clientRepository.findById(Long.valueOf(transactionDto.getClientId()));
-        if (!client.isPresent()) {
-            response.setStatus("Error");
-            response.setMessage("Client  introuvable");
-            return response;
+        Client client = clientRepository.findById(Long.valueOf(transactionDto.getClientId()))
+                .orElseThrow(() -> new ClientIntrouvableException("Client Introuvable"));
 
-        }
+
 
         // Check if account exist
-        Optional<Compte> compte = compteRepository.findByCompteIdAndClient(transactionDto.getCompteId(), client.get());
-        if (!compte.isPresent()) {
-            response.setStatus("Error");
-            response.setMessage("Compte introuvable");
-            return response;
-
-        }
-        Compte compteFound = compte.get();
-
-
+        Compte compteFound = compteRepository.findByCompteIdAndClient(transactionDto.getCompteId(), client)
+                .orElseThrow(() -> new CompteIntrouvableException("Compte Introuvable"));
 
         //Check  type operation
         Compte compteSave = null;
         if(transactionDto.getTypeOperation() == TypeOperation.RETRAIT ) {
             // I check if the balance is sufficient
             if (compteFound.getSolde().compareTo(transactionDto.getMontant()) < 0) {
-                response.setStatus("Error");
-                response.setMessage("Solde insuffisant");
                 //Create new transaction  for ECHEC withdrawal
                 newTransaction(compteFound, transactionDto, TypeOperation.RETRAIT ,StatutTransaction.ECHEC, "Solde insuffisant");
+                throw new SoldeInsuffisantException("Solde insuffisant");
 
-                return response;
             }
             // Subtract balance amount
             compteFound.setSolde(compteFound.getSolde().subtract(transactionDto.getMontant()));
@@ -119,18 +102,15 @@ public class TransactionBusiness {
 
         }
 
-
-
+        // Je contruit la reponse quant tout c bien passé
         CompteDto compteDto = new CompteDto();
         compteDto.setNouveauSolde(compteSave.getSolde());
-
         response.setStatus("Success");
         response.setData(compteDto);
 
         log.info("----end "+ transactionDto.getTypeOperation() +" Transaction -----");
         return response;
     }
-
 
 
     /**
@@ -144,50 +124,33 @@ public class TransactionBusiness {
         log.info("----begin historique Transaction -----");
         Response<ResponseTransactionDto> response = new Response<>();
 
-        // checks if field is filled CompteId
+        //fields  validation
         if(transactionDto.getCompteId() == null || transactionDto.getCompteId() == 0) {
-            response.setStatus("Error");
-            response.setMessage("le champ  CompteId  doit être correctement rempli" + transactionDto.getCompteId());
-            return response;
+            throw new ValidationException("Le champ CompteId doit être correctement rempli ->" + transactionDto.getCompteId());
         }
-        // checks if field is filled ClientId
         if(transactionDto.getClientId() == null || transactionDto.getClientId() == 0) {
-            response.setStatus("Error");
-            response.setMessage("le champ  ClientId  doit être correctement rempli" + transactionDto.getClientId());
-            return response;
+            throw new ValidationException("Le champ ClientId doit être correctement rempli ->" + transactionDto.getClientId());
         }
 
         //check if customer exits
-        Optional<Client> client = clientRepository.findById(Long.valueOf(transactionDto.getClientId()));
-        if (!client.isPresent()) {
-            response.setStatus("Error");
-            response.setMessage("Client  introuvable");
-            return response;
+        Client client = clientRepository.findById(Long.valueOf(transactionDto.getClientId()))
+                .orElseThrow(() -> new ClientIntrouvableException("Client Introuvable ->" + transactionDto.getClientId()));
 
-        }
 
         // Check if account exist
-        Optional<Compte> compte = compteRepository.findByCompteIdAndClient(transactionDto.getCompteId(), client.get());
-        if (!compte.isPresent()) {
-            response.setStatus("Error");
-            response.setMessage("Compte introuvable");
-            return response;
-
-        }
-        Compte compteFound = compte.get();
+        Compte compteFound = compteRepository.findByCompteIdAndClient(transactionDto.getCompteId(), client)
+                .orElseThrow(() -> new CompteIntrouvableException("Compte Introuvable"));
 
         // On recuperer  les transactions
-        List<Transaction> transactions = transactionRepository.findAllByCompte(compte.get());
+        List<Transaction> transactions = transactionRepository.findAllByCompte(compteFound);
         if (transactions.isEmpty()) {
-            response.setStatus("Error");
-            response.setMessage("Aucune transaction trouvée pour ce compte.");
-            return response;
+            throw  new HistoriqueTransactionException("l'histoque de transaction est vide");
         }
 
         //Transformation en DTO
         List<ResponseTransactionDto> transactionDtos = transactionTransformer.toDtoList(transactions);
 
-        //Construction de la réponse
+        //Je construis la reponse quand tout c'est bien passé
         response.setStatus("Success");
         response.setMessage("HIstorique récupéreés avec succès.");
         response.setDatas(transactionDtos);
@@ -197,6 +160,17 @@ public class TransactionBusiness {
 
     }
 
+    /**
+     * newTransaction by using Compte, TransactionDto, TypeOperation,  StatutTransaction, message
+     * to save all transaction in table "Transaction"
+     * @param comptefound
+     * @param transactionDto
+     * @param type
+     * @param status
+     * @param message
+     * @return
+     *
+     */
     public void newTransaction(Compte comptefound, TransactionDto transactionDto, TypeOperation type,  StatutTransaction status, String message) {
         Transaction transaction = new Transaction();
         transaction.setCompte(comptefound);
